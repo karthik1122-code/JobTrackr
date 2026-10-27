@@ -11,7 +11,7 @@
   --rejected: #b5473a;
   --focus: #2563eb;
 
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--ink);
   background: var(--paper);
 }
