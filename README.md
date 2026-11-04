@@ -3,7 +3,7 @@
 A board to keep track of job applications as they move from Applied to Interview to Offer (or Rejected).
 
 - **Frontend** (this folder, Day 3): React board with local state.
-- **Backend** ([`server/`](server/), Day 5): Express REST API. See [server/README.md](server/README.md).
+- **Backend** ([`server/`](server/), Days 5–6): Express REST API with MongoDB (Mongoose). See [server/README.md](server/README.md).
 
 **Live:** https://jobtrackr-board.vercel.app
 

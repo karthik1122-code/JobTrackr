@@ -7,11 +7,17 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
+    "seed": "node scripts/seed.js",
+    "explain": "node scripts/explain.js",
     "test:api": "newman run postman/JobTrackr-API.postman_collection.json"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
-    "express": "^4.22.3"
+    "express": "^4.22.3",
+    "mongoose": "^9.11.4"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0"
   }
 }

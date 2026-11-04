@@ -4,6 +4,7 @@ import logger from './middleware/logger.js'
 import notFound from './middleware/notFound.js'
 import errorHandler from './middleware/errorHandler.js'
 import applicationRoutes from './routes/applications.js'
+import userRoutes from './routes/users.js'
 import demoRoutes from './routes/demo.js'
 
 const app = express()
@@ -21,6 +22,7 @@ app.use(logger)
 
 // 4. the routes
 app.use('/api/applications', applicationRoutes)
+app.use('/api/users', userRoutes)
 app.use('/api', demoRoutes)
 
 // 5. nothing above matched, so it's a 404

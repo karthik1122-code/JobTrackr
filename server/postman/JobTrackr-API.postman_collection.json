@@ -1,16 +1,16 @@
 {
   "info": {
-    "_postman_id": "6b3edd77-4561-4cd2-b6da-f336235d81a0",
+    "_postman_id": "fc7d66bb-71a2-484d-8cc2-0e2e81eb5642",
     "name": "JobTrackr API",
-    "description": "Every route of the JobTrackr API plus error cases. Run it top to bottom with the Collection Runner (Create sets applicationId for the requests after it). Restart the server before a run so the in-memory data is fresh.",
+    "description": "Every route of the JobTrackr API plus error cases. Run `npm run seed` first, then run the collection top to bottom with the Collection Runner (Get users and Create save ids for the requests after them).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Applications",
+      "name": "Users",
       "item": [
         {
-          "name": "Get all applications",
+          "name": "Get users",
           "event": [
             {
               "listen": "test",
@@ -20,11 +20,57 @@
                   "pm.test(\"Status is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
-                  "pm.test(\"Returns a list\", function () {",
+                  "pm.test(\"Has the seeded users, saves the first id\", function () {",
+                  "    const users = pm.response.json().data;",
+                  "    pm.expect(users.length).to.be.at.least(2);",
+                  "    pm.collectionVariables.set(\"userId\", users[0]._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Applications",
+      "item": [
+        {
+          "name": "List (page 1, default limit)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Has pagination info\", function () {",
                   "    const body = pm.response.json();",
-                  "    pm.expect(body.success).to.eql(true);",
-                  "    pm.expect(body.data).to.be.an(\"array\");",
-                  "    pm.expect(body.count).to.eql(body.data.length);",
+                  "    pm.expect(body.page).to.eql(1);",
+                  "    pm.expect(body.limit).to.eql(10);",
+                  "    pm.expect(body.data.length).to.be.at.most(10);",
+                  "    pm.expect(body.totalPages).to.eql(Math.ceil(body.total / body.limit));",
+                  "});",
+                  "pm.test(\"Owner is populated with name and email\", function () {",
+                  "    const owner = pm.response.json().data[0].owner;",
+                  "    pm.expect(owner).to.have.property(\"name\");",
+                  "    pm.expect(owner).to.have.property(\"email\");",
                   "});"
                 ]
               }
@@ -46,7 +92,7 @@
           }
         },
         {
-          "name": "Filter by status and search",
+          "name": "List page 2 (limit 10)",
           "event": [
             {
               "listen": "test",
@@ -56,10 +102,56 @@
                   "pm.test(\"Status is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
-                  "pm.test(\"Only Interview apps matching 'google'\", function () {",
+                  "pm.test(\"Second page of 10\", function () {",
                   "    const body = pm.response.json();",
-                  "    pm.expect(body.data.length).to.be.above(0);",
-                  "    body.data.forEach(function (app) {",
+                  "    pm.expect(body.page).to.eql(2);",
+                  "    pm.expect(body.count).to.eql(10);",
+                  "    pm.expect(body.totalPages).to.eql(Math.ceil(body.total / 10));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications?page=2&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "2"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by owner, status and search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Only this owner's Interview apps matching 'google'\", function () {",
+                  "    const userId = pm.collectionVariables.get(\"userId\");",
+                  "    pm.response.json().data.forEach(function (app) {",
+                  "        pm.expect(app.owner._id).to.eql(userId);",
                   "        pm.expect(app.status).to.eql(\"Interview\");",
                   "        pm.expect((app.company + \" \" + app.role).toLowerCase()).to.include(\"google\");",
                   "    });",
@@ -72,7 +164,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/applications?status=Interview&search=google",
+              "raw": "{{baseUrl}}/api/applications?owner={{userId}}&status=Interview&search=google",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -82,6 +174,10 @@
               ],
               "query": [
                 {
+                  "key": "owner",
+                  "value": "{{userId}}"
+                },
+                {
                   "key": "status",
                   "value": "Interview"
                 },
@@ -89,6 +185,46 @@
                   "key": "search",
                   "value": "google"
                 }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stats (aggregation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Count per status and average offer salary\", function () {",
+                  "    const data = pm.response.json().data;",
+                  "    [\"Applied\", \"Interview\", \"Offer\", \"Rejected\"].forEach(function (s) {",
+                  "        pm.expect(data.byStatus[s]).to.be.a(\"number\");",
+                  "    });",
+                  "    const sum = Object.values(data.byStatus).reduce(function (a, b) { return a + b; }, 0);",
+                  "    pm.expect(sum).to.eql(data.total);",
+                  "    pm.expect(data.averageOfferSalary).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "stats"
               ]
             }
           }
@@ -104,12 +240,13 @@
                   "pm.test(\"Status is 201\", function () {",
                   "    pm.response.to.have.status(201);",
                   "});",
-                  "pm.test(\"Returns the new application with an id\", function () {",
-                  "    const body = pm.response.json();",
-                  "    pm.expect(body.data.id).to.be.a(\"string\");",
-                  "    pm.expect(body.data.company).to.eql(\"Postman Labs\");",
-                  "    pm.expect(body.data.status).to.eql(\"Applied\");",
-                  "    pm.collectionVariables.set(\"applicationId\", body.data.id);",
+                  "pm.test(\"Saved with an id, default status and populated owner\", function () {",
+                  "    const app = pm.response.json().data;",
+                  "    pm.expect(app._id).to.be.a(\"string\");",
+                  "    pm.expect(app.status).to.eql(\"Applied\");",
+                  "    pm.expect(app.owner.name).to.be.a(\"string\");",
+                  "    pm.expect(app).to.have.property(\"createdAt\");",
+                  "    pm.collectionVariables.set(\"applicationId\", app._id);",
                   "});"
                 ]
               }
@@ -135,7 +272,57 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company\": \"Postman Labs\",\n  \"role\": \"API Intern\",\n  \"appliedOn\": \"2026-10-25\",\n  \"priority\": \"High\"\n}",
+              "raw": "{\n  \"owner\": \"{{userId}}\",\n  \"company\": \"Postman Labs\",\n  \"role\": \"API Intern\",\n  \"appliedOn\": \"2026-10-25\",\n  \"priority\": \"High\",\n  \"salary\": 45000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create the same again \u2192 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"owner\": \"{{userId}}\",\n  \"company\": \"postman labs\",\n  \"role\": \"API INTERN\",\n  \"appliedOn\": \"2026-10-25\",\n  \"priority\": \"High\",\n  \"salary\": 45000\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -156,7 +343,7 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "pm.test(\"Returns the right application\", function () {",
-                  "    pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get(\"applicationId\"));",
+                  "    pm.expect(pm.response.json().data._id).to.eql(pm.collectionVariables.get(\"applicationId\"));",
                   "});"
                 ]
               }
@@ -220,6 +407,114 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"Interview\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Add a note",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Note was pushed\", function () {",
+                  "    const notes = pm.response.json().data.notes;",
+                  "    pm.expect(notes.length).to.eql(1);",
+                  "    pm.expect(notes[0].text).to.eql(\"Recruiter called back\");",
+                  "    pm.expect(notes[0]).to.have.property(\"createdAt\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}/notes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "{{applicationId}}",
+                "notes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Recruiter called back\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Add an empty note \u2192 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});",
+                  "pm.test(\"A message for each bad field\", function () {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"text\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}/notes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "{{applicationId}}",
+                "notes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -305,38 +600,42 @@
           }
         },
         {
-          "name": "404 - delete an id that doesn't exist",
+          "name": "400 - bad id (CastError)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status is 404\", function () {",
-                  "    pm.response.to.have.status(404);",
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
                   "});",
                   "pm.test(\"Error has the standard shape\", function () {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body.success).to.eql(false);",
                   "    pm.expect(body.message).to.be.a(\"string\");",
                   "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});",
+                  "pm.test(\"A message for each bad field\", function () {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"id\");",
                   "});"
                 ]
               }
             }
           ],
           "request": {
-            "method": "DELETE",
+            "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/applications/does-not-exist",
+              "raw": "{{baseUrl}}/api/applications/abc123",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "applications",
-                "does-not-exist"
+                "abc123"
               ]
             }
           }
@@ -378,7 +677,7 @@
           }
         },
         {
-          "name": "400 - invalid body",
+          "name": "400 - invalid body (ValidationError)",
           "event": [
             {
               "listen": "test",
@@ -396,10 +695,13 @@
                   "});",
                   "pm.test(\"A message for each bad field\", function () {",
                   "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"owner\");",
                   "    pm.expect(errors).to.have.property(\"company\");",
                   "    pm.expect(errors).to.have.property(\"role\");",
                   "    pm.expect(errors).to.have.property(\"appliedOn\");",
                   "    pm.expect(errors).to.have.property(\"priority\");",
+                  "    pm.expect(errors).to.have.property(\"salary\");",
+                  "    pm.expect(errors).to.have.property(\"status\");",
                   "});"
                 ]
               }
@@ -425,7 +727,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company\": \"A\",\n  \"role\": \"\",\n  \"appliedOn\": \"2099-01-01\",\n  \"priority\": \"Urgent\"\n}",
+              "raw": "{\n  \"company\": \"A\",\n  \"appliedOn\": \"2099-01-01\",\n  \"priority\": \"Urgent\",\n  \"salary\": -100,\n  \"status\": \"Hired\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -451,8 +753,9 @@
                   "    pm.expect(body.message).to.be.a(\"string\");",
                   "    pm.expect(body.errors).to.be.an(\"object\");",
                   "});",
-                  "pm.test(\"Says which field isn't allowed\", function () {",
-                  "    pm.expect(pm.response.json().errors).to.have.property(\"salary\");",
+                  "pm.test(\"A message for each bad field\", function () {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"notes\");",
                   "});"
                 ]
               }
@@ -467,73 +770,19 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/applications/1",
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "applications",
-                "1"
+                "{{applicationId}}"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"salary\": 50000\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "400 - PATCH with an invalid status",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status is 400\", function () {",
-                  "    pm.response.to.have.status(400);",
-                  "});",
-                  "pm.test(\"Error has the standard shape\", function () {",
-                  "    const body = pm.response.json();",
-                  "    pm.expect(body.success).to.eql(false);",
-                  "    pm.expect(body.message).to.be.a(\"string\");",
-                  "    pm.expect(body.errors).to.be.an(\"object\");",
-                  "});",
-                  "pm.test(\"Message on the status field\", function () {",
-                  "    pm.expect(pm.response.json().errors).to.have.property(\"status\");",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/applications/1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "applications",
-                "1"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"Hired\"\n}",
+              "raw": "{\n  \"notes\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -593,7 +842,58 @@
           }
         },
         {
-          "name": "409 - duplicate application",
+          "name": "400 - bad pagination",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});",
+                  "pm.test(\"A message for each bad field\", function () {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"page\");",
+                  "    pm.expect(errors).to.have.property(\"limit\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications?page=0&limit=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "500"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "409 - duplicate user email",
           "event": [
             {
               "listen": "test",
@@ -608,6 +908,10 @@
                   "    pm.expect(body.success).to.eql(false);",
                   "    pm.expect(body.message).to.be.a(\"string\");",
                   "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});",
+                  "pm.test(\"A message for each bad field\", function () {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"email\");",
                   "});"
                 ]
               }
@@ -622,18 +926,18 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/applications",
+              "raw": "{{baseUrl}}/api/users",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "applications"
+                "users"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company\": \"razorpay\",\n  \"role\": \"FRONTEND INTERN\",\n  \"appliedOn\": \"2026-10-01\",\n  \"priority\": \"Low\"\n}",
+              "raw": "{\n  \"name\": \"Copy\",\n  \"email\": \"KARTHIK@example.com\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -722,6 +1026,10 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:5000"
+    },
+    {
+      "key": "userId",
+      "value": ""
     },
     {
       "key": "applicationId",
