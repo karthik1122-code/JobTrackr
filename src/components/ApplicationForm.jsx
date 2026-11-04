@@ -7,33 +7,46 @@ const emptyForm = {
   role: '',
   appliedOn: '',
   priority: 'Medium',
+  salary: '',
 }
 
-function ApplicationForm({ apps, onAdd }) {
+// onAdd returns a promise. If it rejects with { message, errors }, we show them here.
+function ApplicationForm({ onAdd }) {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
+  const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   function handleChange(e) {
     const { name, value } = e.target
     setForm({ ...form, [name]: value })
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
 
-    const found = validate(form, apps)
+    const found = validate(form)
     setErrors(found)
+    setMessage('')
     if (Object.keys(found).length > 0) return
 
-    onAdd({
-      id: crypto.randomUUID(),
-      company: form.company.trim(),
-      role: form.role.trim(),
-      appliedOn: form.appliedOn,
-      priority: form.priority,
-      status: 'Applied',
-    })
-    setForm(emptyForm)
+    setSubmitting(true)
+    try {
+      await onAdd({
+        company: form.company.trim(),
+        role: form.role.trim(),
+        appliedOn: form.appliedOn,
+        priority: form.priority,
+        ...(form.salary !== '' && { salary: Number(form.salary) }),
+      })
+      setForm(emptyForm)
+    } catch (err) {
+      // server errors go under their field (e.g. a 409 duplicate shows under Role)
+      setErrors(err.errors ?? {})
+      if (!err.errors || Object.keys(err.errors).length === 0) setMessage(err.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -54,31 +67,34 @@ function ApplicationForm({ apps, onAdd }) {
 
       <div className="field">
         <label htmlFor="appliedOn">Applied on</label>
-        <input
-          id="appliedOn"
-          name="appliedOn"
-          type="date"
-          max={today()}
-          value={form.appliedOn}
-          onChange={handleChange}
-        />
+        <input id="appliedOn" name="appliedOn" type="date" max={today()} value={form.appliedOn} onChange={handleChange} />
         {errors.appliedOn && <p className="error">{errors.appliedOn}</p>}
       </div>
 
-      <div className="field">
-        <label htmlFor="priority">Priority</label>
-        <select id="priority" name="priority" value={form.priority} onChange={handleChange}>
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        {errors.priority && <p className="error">{errors.priority}</p>}
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="priority">Priority</label>
+          <select id="priority" name="priority" value={form.priority} onChange={handleChange}>
+            {PRIORITIES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          {errors.priority && <p className="error">{errors.priority}</p>}
+        </div>
+
+        <div className="field">
+          <label htmlFor="salary">Stipend (₹/month)</label>
+          <input id="salary" name="salary" type="number" placeholder="Optional" value={form.salary} onChange={handleChange} />
+          {errors.salary && <p className="error">{errors.salary}</p>}
+        </div>
       </div>
 
-      <button type="submit" className="btn-primary">
-        Add to board
+      {message && <p className="error form-error">{message}</p>}
+
+      <button type="submit" className="btn-primary" disabled={submitting}>
+        {submitting ? 'Adding…' : 'Add to board'}
       </button>
     </form>
   )

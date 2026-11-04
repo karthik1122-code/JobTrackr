@@ -1,4 +1,4 @@
-function today() {
+export function today() {
   // local date as yyyy-mm-dd, same format the date input gives us
   const d = new Date()
   const month = String(d.getMonth() + 1).padStart(2, '0')
@@ -6,7 +6,8 @@ function today() {
   return `${d.getFullYear()}-${month}-${day}`
 }
 
-export function validate(form, apps) {
+// quick checks before sending. The API checks everything again (and catches duplicates with a 409)
+export function validate(form) {
   const errors = {}
   const company = form.company.trim()
   const role = form.role.trim()
@@ -20,19 +21,7 @@ export function validate(form, apps) {
   if (!form.appliedOn) errors.appliedOn = 'Pick the date you applied'
   else if (form.appliedOn > today()) errors.appliedOn = "Date can't be in the future"
 
-  if (!form.priority) errors.priority = 'Choose a priority'
-
-  // same company + role already on the board (ignore case)
-  if (!errors.company && !errors.role) {
-    const duplicate = apps.some(
-      (a) =>
-        a.company.toLowerCase() === company.toLowerCase() &&
-        a.role.toLowerCase() === role.toLowerCase(),
-    )
-    if (duplicate) errors.role = `You already added ${role} at ${company}`
-  }
+  // salary is only checked by the API, so a negative number shows the server's 400 under the field
 
   return errors
 }
-
-export { today }

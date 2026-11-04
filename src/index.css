@@ -319,3 +319,254 @@ select {
     flex-direction: column;
   }
 }
+
+/* ---------- Day 8 ---------- */
+
+.splash {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  color: var(--ink-soft);
+}
+
+/* auth pages */
+.auth-page {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.auth-card {
+  width: min(24rem, 100%);
+  padding: 2rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+}
+
+.auth-card h1 {
+  margin: 1.25rem 0 1.25rem;
+  font-size: 1.5rem;
+}
+
+.auth-brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.auth-switch {
+  margin: 1.25rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth-card a {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.not-found {
+  text-align: center;
+}
+
+.not-found h1 {
+  font-size: 3rem;
+  margin: 0;
+}
+
+.form-error {
+  margin: 0 0 0.9rem;
+}
+
+.banner {
+  position: relative;
+  margin: 0 0 1rem;
+  padding: 0.7rem 2.2rem 0.7rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.banner.warning {
+  background: #fdf0d2;
+  color: #6b4a00;
+}
+
+.banner.info {
+  background: #e1ecf7;
+  color: #2f5788;
+}
+
+.error-banner {
+  background: #fde2dd;
+  color: #8a2b1f;
+}
+
+.banner-close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+/* header user menu */
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-name {
+  color: #d6dbe6;
+  font-size: 0.9rem;
+}
+
+.btn-ghost {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.btn-ghost:hover {
+  border-color: #fff;
+}
+
+.btn-ghost.dark {
+  margin-top: 0.75rem;
+  border-color: var(--line);
+  color: var(--ink);
+  background: #fff;
+}
+
+/* stats bar */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stats-loading,
+.stats-error {
+  display: block;
+  padding: 0.9rem;
+  border-radius: 0.6rem;
+  background: var(--card);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--status-color, var(--amber));
+  border-radius: 0.6rem;
+  background: var(--card);
+}
+
+.stat-applied { --status-color: var(--applied); }
+.stat-interview { --status-color: var(--interview); }
+.stat-offer { --status-color: var(--offer); }
+.stat-rejected { --status-color: var(--rejected); }
+
+.stat-number {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.stat-label {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+/* states */
+.state-box {
+  padding: 3rem 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 0.75rem;
+  background: #fbf9f4;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.state-box p {
+  margin: 0;
+}
+
+.board-wrap.loading {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.card.busy {
+  opacity: 0.6;
+}
+
+.card-actions button:disabled,
+.btn-primary:disabled,
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.pagination button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.muted {
+  color: var(--ink-soft);
+}
+
+@media (max-width: 1100px) {
+  .stats-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .stats-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .user-name {
+    display: none;
+  }
+}
