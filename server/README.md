@@ -5,6 +5,7 @@ The backend for [JobTrackr](../README.md), built with Node.js, Express and Mongo
 - **Day 5**: REST routes, middleware, validation, central error handling
 - **Day 6**: moved from an in-memory array to MongoDB Atlas, with users, embedded notes, an index, aggregation and pagination
 - **Day 7**: accounts with bcrypt + JWT, users only see their own data, an admin role, and defences against brute force, NoSQL injection and XSS
+- **Day 9**: `/api/health`, `trust proxy` for Render, a `Dockerfile`, and deployment to Render (see the [main README](../README.md) and [DEPLOY_NOTES.md](../DEPLOY_NOTES.md))
 
 ## Run it
 
@@ -25,7 +26,7 @@ npm run dev              # starts only after MongoDB connects
 | --- | --- | --- |
 | `PORT` | `5000` | port the server listens on |
 | `NODE_ENV` | `development` | stack traces are only included in errors when this is `development` |
-| `CLIENT_URL` | `http://localhost:5173` | the only browser origin CORS allows |
+| `CLIENT_URL` | `http://localhost:5173` | browser origin(s) CORS allows, comma-separated, e.g. `https://jobtrackr-board.vercel.app,http://localhost:5173` |
 | `MONGODB_URI` | `mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/jobtrackr` | Atlas connection string |
 | `JWT_SECRET` | a long random string | signs the login tokens. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `JWT_EXPIRES_IN` | `1d` | how long a token stays valid |
@@ -101,6 +102,7 @@ Send the token on every other request as `Authorization: Bearer <token>`.
 | PATCH | `/api/applications/:id` | partial update, only known fields | 200 / 400 / 404 |
 | DELETE | `/api/applications/:id` | | 204 / 400 / 404 |
 | POST | `/api/applications/:id/notes` | `{ "text": "..." }` pushes a note | 201 / 400 / 404 |
+| GET | `/api/health` | `{ status, uptime, database, environment, timestamp }`, 503 if the database is down (Day 9, public) | 200 / 503 |
 | GET | `/api/slow`, `/api/block` | event loop demo (Day 5, public) | 200 |
 
 Every application comes back with `populate('owner', 'name email')`:

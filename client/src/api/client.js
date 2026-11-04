@@ -8,8 +8,16 @@ export const tokenStore = {
   clear: () => localStorage.removeItem(TOKEN_KEY),
 }
 
+const API_URL = import.meta.env.VITE_API_URL
+
+// Vite bakes env variables in at BUILD time. If this is empty, every request would go to the
+// frontend's own domain (and get a 404/405), so fail loudly instead.
+if (!API_URL) {
+  console.error('VITE_API_URL is not set. Add it in Vercel → Settings → Environment Variables, then redeploy.')
+}
+
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: API_URL,
   // Render's free tier sleeps when idle and takes up to ~50s to wake up, so be patient
   timeout: 60000,
 })
@@ -43,6 +51,7 @@ client.interceptors.response.use(
 // turns any Axios error into { message, errors } for showing in the UI
 export function readError(error) {
   if (axios.isCancel(error)) return { message: '', errors: {}, cancelled: true }
+  if (!API_URL) return { message: 'The app is not configured: VITE_API_URL is missing.', errors: {} }
   if (!error.response) {
     return { message: "Can't reach the server. Check that the API is running.", errors: {} }
   }
