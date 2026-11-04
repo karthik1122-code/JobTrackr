@@ -1,0 +1,22 @@
+# Render Blueprint: New → Blueprint → pick this repo, and Render creates the API service from this file.
+# Secret values are NOT in this file (sync: false = Render asks you for them).
+services:
+  - type: web
+    name: jobtrackr-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false

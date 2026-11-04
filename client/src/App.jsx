@@ -19,7 +19,12 @@ function App() {
 
   // don't show any page until we know if the saved token is still good
   if (checking) {
-    return <div className="splash">Loading JobTrackr…</div>
+    return (
+      <div className="splash">
+        <p>Loading JobTrackr…</p>
+        <p className="splash-hint">The free server sleeps when nobody's using it. The first load can take up to a minute.</p>
+      </div>
+    )
   }
 
   return (

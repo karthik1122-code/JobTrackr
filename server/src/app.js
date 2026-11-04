@@ -8,8 +8,19 @@ import applicationRoutes from './routes/applications.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import demoRoutes from './routes/demo.js'
+import healthRoutes from './routes/health.js'
 
 const app = express()
+
+// On Render (and most hosts) requests come through a proxy. Without this, req.ip would be
+// the proxy's IP, so every user would share ONE login rate limit.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1)
+
+// CLIENT_URL can be one URL or a comma-separated list (e.g. the Vercel URL + localhost)
+const allowedOrigins = (process.env.CLIENT_URL || '')
+  .split(',')
+  .map((url) => url.trim().replace(/\/$/, ''))
+  .filter(Boolean)
 
 // Order matters here. Express runs middleware top to bottom for every request.
 
@@ -17,7 +28,7 @@ const app = express()
 app.use(helmet())
 
 // 2. only the frontend at CLIENT_URL is allowed to call this API from a browser
-app.use(cors({ origin: process.env.CLIENT_URL }))
+app.use(cors({ origin: allowedOrigins }))
 
 // 3. turns a JSON body into req.body (has to come before the routes that read it).
 // The 10kb limit stops someone sending a huge body to tie up the server.
@@ -27,6 +38,7 @@ app.use(express.json({ limit: '10kb' }))
 app.use(logger)
 
 // 5. the routes
+app.use('/api/health', healthRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/applications', applicationRoutes)
 app.use('/api/admin', adminRoutes)

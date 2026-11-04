@@ -10,7 +10,8 @@ export const tokenStore = {
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
-  timeout: 15000,
+  // Render's free tier sleeps when idle and takes up to ~50s to wake up, so be patient
+  timeout: 60000,
 })
 
 // add "Authorization: Bearer <token>" to every request if we have a token
