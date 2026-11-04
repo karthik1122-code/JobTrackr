@@ -98,6 +98,7 @@ I also made the app fail with a clear message if this happens again. If `VITE_AP
 
 ## Other things I fixed while deploying
 
+- **Vercel built from the wrong folder:** after moving the frontend into `client/`, the first Vercel build from GitHub failed with `Command "npm install" exited with 254` (`ENOENT`). Vercel was running `npm install` in the repo root, which has no `package.json` anymore. Fixed by setting **Root Directory = `client`** in the Vercel project settings, then redeploying.
 - **Rate limit shared by everyone:** on Render, every request comes through Render's proxy, so `req.ip` was the proxy's IP. All users would have shared one "5 login attempts per 15 minutes" limit. Fixed with `app.set('trust proxy', 1)` in production, so `express-rate-limit` uses the real client IP from `X-Forwarded-For`.
 - **Cold starts:** Render's free tier sleeps after ~15 minutes idle, and the first request can take 30–50 seconds. The Axios timeout was 15 s, so the first visit could fail. I raised it to 60 s and the loading screen now says the free server may take up to a minute.
 - **Refreshing a page:** without `client/vercel.json`, refreshing `/applications/12` on Vercel gave Vercel's own 404, because there's no such file. The rewrite sends every path to `/index.html` and React Router handles it. I checked it on the live site: `/applications/12` loads the app (and shows the app's own "page doesn't exist" screen).
