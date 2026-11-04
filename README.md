@@ -2,7 +2,8 @@
 
 A board to keep track of job applications as they move from Applied to Interview to Offer (or Rejected).
 
-This is the Day 3 version: React UI only, everything lives in local state. A backend and more features come later in the week.
+- **Frontend** (this folder, Day 3): React board with local state.
+- **Backend** ([`server/`](server/), Day 5): Express REST API. See [server/README.md](server/README.md).
 
 **Live:** https://jobtrackr-board.vercel.app
 

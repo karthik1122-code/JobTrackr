@@ -1,0 +1,731 @@
+{
+  "info": {
+    "_postman_id": "6b3edd77-4561-4cd2-b6da-f336235d81a0",
+    "name": "JobTrackr API",
+    "description": "Every route of the JobTrackr API plus error cases. Run it top to bottom with the Collection Runner (Create sets applicationId for the requests after it). Restart the server before a run so the in-memory data is fresh.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Applications",
+      "item": [
+        {
+          "name": "Get all applications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Returns a list\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(true);",
+                  "    pm.expect(body.data).to.be.an(\"array\");",
+                  "    pm.expect(body.count).to.eql(body.data.length);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by status and search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Only Interview apps matching 'google'\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.data.length).to.be.above(0);",
+                  "    body.data.forEach(function (app) {",
+                  "        pm.expect(app.status).to.eql(\"Interview\");",
+                  "        pm.expect((app.company + \" \" + app.role).toLowerCase()).to.include(\"google\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications?status=Interview&search=google",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Interview"
+                },
+                {
+                  "key": "search",
+                  "value": "google"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Returns the new application with an id\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.data.id).to.be.a(\"string\");",
+                  "    pm.expect(body.data.company).to.eql(\"Postman Labs\");",
+                  "    pm.expect(body.data.status).to.eql(\"Applied\");",
+                  "    pm.collectionVariables.set(\"applicationId\", body.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"Postman Labs\",\n  \"role\": \"API Intern\",\n  \"appliedOn\": \"2026-10-25\",\n  \"priority\": \"High\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get one application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Returns the right application\", function () {",
+                  "    pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get(\"applicationId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "{{applicationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update status (partial)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Only status changed\", function () {",
+                  "    const app = pm.response.json().data;",
+                  "    pm.expect(app.status).to.eql(\"Interview\");",
+                  "    pm.expect(app.company).to.eql(\"Postman Labs\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "{{applicationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Interview\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "pm.test(\"No body\", function () {",
+                  "    pm.expect(pm.response.text()).to.eql(\"\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "{{applicationId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error cases",
+      "item": [
+        {
+          "name": "404 - get a deleted id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "{{applicationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "404 - delete an id that doesn't exist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/does-not-exist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "does-not-exist"
+              ]
+            }
+          }
+        },
+        {
+          "name": "404 - unknown route",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/nope",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "nope"
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - invalid body",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});",
+                  "pm.test(\"A message for each bad field\", function () {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"company\");",
+                  "    pm.expect(errors).to.have.property(\"role\");",
+                  "    pm.expect(errors).to.have.property(\"appliedOn\");",
+                  "    pm.expect(errors).to.have.property(\"priority\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"A\",\n  \"role\": \"\",\n  \"appliedOn\": \"2099-01-01\",\n  \"priority\": \"Urgent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "400 - PATCH with an unknown field",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});",
+                  "pm.test(\"Says which field isn't allowed\", function () {",
+                  "    pm.expect(pm.response.json().errors).to.have.property(\"salary\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"salary\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "400 - PATCH with an invalid status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});",
+                  "pm.test(\"Message on the status field\", function () {",
+                  "    pm.expect(pm.response.json().errors).to.have.property(\"status\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications",
+                "1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Hired\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "400 - broken JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"company\": \"Oops\", ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "409 - duplicate application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "pm.test(\"Error has the standard shape\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.success).to.eql(false);",
+                  "    pm.expect(body.message).to.be.a(\"string\");",
+                  "    pm.expect(body.errors).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "applications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"razorpay\",\n  \"role\": \"FRONTEND INTERN\",\n  \"appliedOn\": \"2026-10-01\",\n  \"priority\": \"Low\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Event loop demo",
+      "item": [
+        {
+          "name": "Slow (non-blocking)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Took about 3 seconds\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.above(2900);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/slow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "slow"
+              ]
+            },
+            "description": "Waits 3s with setTimeout. Other requests still get answered straight away."
+          }
+        },
+        {
+          "name": "Block (busy loop)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Took about 3 seconds\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.above(2900);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/block",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "block"
+              ]
+            },
+            "description": "Runs a 3s busy loop. Every other request waits until it finishes."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "applicationId",
+      "value": ""
+    }
+  ]
+}
