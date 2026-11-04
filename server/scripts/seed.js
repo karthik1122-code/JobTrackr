@@ -1,4 +1,5 @@
-// npm run seed  ->  wipes the collections, then adds 2 users and 1,000 random applications
+// npm run seed  ->  wipes the collections, then adds 2 users, 1 admin and 1,000 random applications
+// All seeded accounts use the password: Password123!
 import 'dotenv/config'
 import mongoose from 'mongoose'
 import { connectDB } from '../src/config/db.js'
@@ -38,10 +39,13 @@ async function seed() {
 
   await Promise.all([User.deleteMany({}), Application.deleteMany({})])
 
+  // create() (not insertMany) so the pre-save hook hashes each password
   const users = await User.create([
-    { name: 'Karthik Uppari', email: 'karthik@example.com' },
-    { name: 'Asha Rao', email: 'asha@example.com' },
+    { name: 'Karthik Uppari', email: 'karthik@example.com', password: 'Password123!' },
+    { name: 'Asha Rao', email: 'asha@example.com', password: 'Password123!' },
   ])
+  // the admin. You can also promote any account by setting role: "admin" on it in Atlas
+  const admin = await User.create({ name: 'Admin', email: 'admin@example.com', password: 'Password123!', role: 'admin' })
 
   const apps = []
   for (let i = 0; i < 1000; i++) {
@@ -64,8 +68,8 @@ async function seed() {
 
   await Application.insertMany(apps)
 
-  console.log(`Seeded ${users.length} users and ${apps.length} applications`)
-  for (const u of users) console.log(`  ${u.name}: ${u._id}`)
+  console.log(`Seeded ${users.length} users, 1 admin and ${apps.length} applications`)
+  for (const u of [...users, admin]) console.log(`  ${u.email} (${u.role}) password: Password123!`)
   await mongoose.disconnect()
 }
 

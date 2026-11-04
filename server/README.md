@@ -4,6 +4,7 @@ The backend for [JobTrackr](../README.md), built with Node.js, Express and Mongo
 
 - **Day 5**: REST routes, middleware, validation, central error handling
 - **Day 6**: moved from an in-memory array to MongoDB Atlas, with users, embedded notes, an index, aggregation and pagination
+- **Day 7**: accounts with bcrypt + JWT, users only see their own data, an admin role, and defences against brute force, NoSQL injection and XSS
 
 ## Run it
 
@@ -14,7 +15,7 @@ The backend for [JobTrackr](../README.md), built with Node.js, Express and Mongo
 cd server
 npm install
 cp .env.example .env     # paste your Atlas URI into MONGODB_URI
-npm run seed             # 2 users + 1,000 applications
+npm run seed             # 2 users + 1 admin + 1,000 applications
 npm run dev              # starts only after MongoDB connects
 ```
 
@@ -26,6 +27,8 @@ npm run dev              # starts only after MongoDB connects
 | `NODE_ENV` | `development` | stack traces are only included in errors when this is `development` |
 | `CLIENT_URL` | `http://localhost:5173` | the only browser origin CORS allows |
 | `MONGODB_URI` | `mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/jobtrackr` | Atlas connection string |
+| `JWT_SECRET` | a long random string | signs the login tokens. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
+| `JWT_EXPIRES_IN` | `1d` | how long a token stays valid |
 
 `server.js` awaits `connectDB()` before calling `app.listen()`. If the connection fails, it logs the reason and exits, so the API never runs without a database.
 
@@ -35,12 +38,12 @@ Scripts:
 | --- | --- |
 | `npm run dev` | start with `node --watch` |
 | `npm start` | start normally |
-| `npm run seed` | wipe the collections, add 2 users and 1,000 random applications |
+| `npm run seed` | wipe the collections, add 2 users + 1 admin (password `Password123!`) and 1,000 random applications |
 | `npm run explain` | run `explain()` without and with the `{ owner: 1, status: 1 }` index |
 
 ## Data model
 
-**User**: `name` (2–60 chars), `email` (unique, lowercased, must look like an email), `createdAt`, `updatedAt`
+**User**: `name` (2–60 chars), `email` (unique, lowercased, must look like an email), `password` (8–72 chars, bcrypt hash, `select: false`), `role` (`user` or `admin`, default `user`), `createdAt`, `updatedAt`
 
 **Application**:
 
@@ -55,7 +58,7 @@ Scripts:
 | `notes` | array of `{ text, createdAt }` subdocuments (**embedded**), text up to 500 chars |
 | `createdAt`, `updatedAt` | from `timestamps: true` |
 
-Login comes on Day 7. Until then, POST takes the `owner` id in the body. Get one from `GET /api/users`.
+The `owner` always comes from the logged-in user's token, never from the request body.
 
 ### Why notes are embedded but the owner is referenced
 
@@ -76,18 +79,29 @@ MongoDB fits JobTrackr because each application is a self-contained document (wi
 
 ## Routes
 
+### Auth
+
+| Method | Route | Success | Errors |
+| --- | --- | --- | --- |
+| POST | `/api/auth/register` | 201 + token + user (no password) | 400 invalid, 409 email taken |
+| POST | `/api/auth/login` | 200 + token + user | 400 non-string fields, 401 `Invalid email or password`, 429 too many attempts |
+| GET | `/api/auth/me` | 200 + user | 401 not authorised |
+| GET | `/api/admin/stats` | 200 + totals across all users | 401 no token, 403 not an admin |
+
+Send the token on every other request as `Authorization: Bearer <token>`.
+
+### Applications (all need a token, and only ever touch your own applications)
+
 | Method | Route | Notes | Success |
 | --- | --- | --- | --- |
-| GET | `/api/applications` | `?page=2&limit=10&status=Interview&search=google&owner=<id>` | 200 |
-| GET | `/api/applications/stats` | count per status + average offer salary (`?owner=<id>` optional) | 200 |
+| GET | `/api/applications` | `?page=2&limit=10&status=Interview&search=google` | 200 |
+| GET | `/api/applications/stats` | your count per status + average offer salary | 200 |
 | GET | `/api/applications/:id` | one application, owner populated | 200 / 400 / 404 |
-| POST | `/api/applications` | validated by the schema | 201 |
+| POST | `/api/applications` | validated by the schema, owner = you | 201 |
 | PATCH | `/api/applications/:id` | partial update, only known fields | 200 / 400 / 404 |
 | DELETE | `/api/applications/:id` | | 204 / 400 / 404 |
 | POST | `/api/applications/:id/notes` | `{ "text": "..." }` pushes a note | 201 / 400 / 404 |
-| GET | `/api/users` | list users (to get an owner id) | 200 |
-| POST | `/api/users` | `{ "name", "email" }` | 201 / 409 |
-| GET | `/api/slow`, `/api/block` | event loop demo (Day 5) | 200 |
+| GET | `/api/slow`, `/api/block` | event loop demo (Day 5, public) | 200 |
 
 Every application comes back with `populate('owner', 'name email')`:
 
@@ -126,14 +140,93 @@ Every error has the same shape:
 | Unknown field in PATCH | 400 | `{ "notes": "notes is not an allowed field" }` |
 | Bad `page` / `limit` / `status` filter | 400 | `{ "limit": "limit must be a whole number from 1 to 100" }` |
 | Broken JSON body | 400 | `{}` |
-| Valid id that doesn't exist, unknown route | 404 | `{}` |
+| No token, fake token or expired token | 401 | `{}` |
+| Logged in but not an admin | 403 | `{}` |
+| Valid id that doesn't exist, **or belongs to someone else**, unknown route | 404 | `{}` |
 | Same company + role for the same user, or a taken email | 409 | `{ "email": "karthik@example.com is already taken" }` |
+| 6th login attempt in 15 minutes | 429 | `{}` |
 
 The routes `throw new ApiError(...)` or let Mongoose throw. The central `errorHandler` turns all of these into the shape above. A `stack` field is added only when `NODE_ENV=development`.
 
+## Authentication and authorisation (Day 7)
+
+### Passwords
+- `password` has `select: false`, so normal queries never load it. Login asks for it explicitly with `.select('+password')`.
+- A `pre('save')` hook hashes it with **bcrypt, 12 rounds** whenever it's new or changed. Validation (8–72 characters) runs on the plain password before the hook.
+- The model's `toJSON` also deletes `password`, so even a loaded hash can never end up in a response. The Postman tests check that no response contains `password` or a `$2b$` hash.
+- What's stored in MongoDB looks like `$2b$12$Gx4cqTu9aS74cN1YXxIS..tguNnG4u...`
+
+### Tokens
+- Register and login return a **JWT** signed with `JWT_SECRET`, containing `{ id, role }`, valid for `JWT_EXPIRES_IN` (1 day).
+- Login gives **the same message for an unknown email and a wrong password** (`Invalid email or password`), so nobody can use it to check which emails have accounts. For an unknown email it still runs a bcrypt compare against a dummy hash, so both cases take about the same time too.
+- `role` is never read from the register body. Sending `"role": "admin"` still creates a normal user.
+
+### Middleware
+- `protect` reads `Authorization: Bearer <token>`, verifies it, loads the user and sets `req.user`. Missing, invalid or expired token → 401. If the account was deleted, the token stops working too.
+- `authorize('admin')` runs after `protect` and returns 403 for any other role. The role is read from the database, not the token, so promoting or demoting someone takes effect straight away.
+
+### Users only see their own applications
+Every application query starts from `{ owner: req.user.id }`: list, stats, get, update, delete and notes. If User B asks for User A's application, the query `{ _id, owner: B }` finds nothing, so B gets **404**, not 403. A 403 would tell B that the id exists.
+
+### Making an admin
+`npm run seed` creates `admin@example.com` with `role: "admin"`. To promote any other account, open the cluster in **Atlas → Browse Collections → jobtrackr → users**, edit the user, change `role` from `"user"` to `"admin"` and save. Their next request is treated as admin.
+
+`GET /api/admin/stats` returns users per role, applications per status, the average offer salary across everyone, and the top 5 users by number of applications (name and email only).
+
+## Security defences (Day 7)
+
+### Brute force: rate limiting
+`POST /api/auth/login` uses `express-rate-limit`: **5 attempts per 15 minutes per IP**. The 6th gets **429** `Too many login attempts. Try again in 15 minutes.` with a `Retry-After` header. The limiter runs before validation, so every attempt counts, including bad ones.
+
+(The counter lives in memory, so restarting the server resets it. With several servers it would need a shared store like Redis. Behind a proxy you'd also set `app.set('trust proxy', 1)` so it sees the real IP.)
+
+### helmet()
+`helmet()` is the first middleware and adds security headers to every response. Three of them:
+
+| Header | Value | What it does |
+| --- | --- | --- |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; object-src 'none'; ...` | tells the browser which sources scripts, styles, images etc. may load from. Injected inline scripts won't run |
+| `X-Content-Type-Options` | `nosniff` | stops the browser guessing the content type, so a JSON response can't be treated as HTML or a script |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | tells the browser to only use HTTPS for this site for a year |
+
+It also sets `X-Frame-Options: SAMEORIGIN` (no embedding the site in someone else's iframe, which stops clickjacking) and `Referrer-Policy: no-referrer`, and removes `X-Powered-By: Express` so the server doesn't advertise what it runs.
+
+### NoSQL injection
+The attack, in Postman:
+
+```json
+POST /api/auth/login
+{ "email": { "$ne": null }, "password": "x" }
+```
+
+Without protection, `User.findOne({ email: { $ne: null } })` means "find a user whose email is not null", which matches the first user in the database. That's how attackers get into accounts without knowing the email.
+
+Blocked twice:
+1. **Validation**: `requireStrings(['email', 'password'])` rejects anything that isn't a plain string → `400 { "errors": { "email": "email must be a string" } }`. Register does the same for name, email and password. Query params are checked too, so `?status[$ne]=Applied` → 400.
+2. **`mongoose.set('sanitizeFilter', true)`** in `config/db.js`: if an object with a `$` key ever reaches a query anyway, Mongoose wraps it in `$eq` so it's matched as a literal value, not run as an operator. I tested it without the validation: the query failed instead of returning a user. Where the code uses an operator on purpose (the `$ne` in the duplicate check), it's marked with `mongoose.trusted()`.
+
+### XSS
+The test: save a note with `<img src=x onerror=alert(1)>`. The API stores it **exactly as typed** and returns it as JSON (`Content-Type: application/json` with `nosniff`), so nothing runs on the API side.
+
+When the React frontend shows it like this:
+
+```jsx
+<p>{note.text}</p>
+```
+
+**React escapes it by default.** Anything inside `{ }` is inserted as a text node, not parsed as HTML, so `<` and `>` become `&lt;` and `&gt;`. The user sees the literal text `<img src=x onerror=alert(1)>` on the page, and no image tag is created, so `onerror` never fires.
+
+The React feature that would make it dangerous is **`dangerouslySetInnerHTML`**:
+
+```jsx
+<p dangerouslySetInnerHTML={{ __html: note.text }} />   // ❌ the browser parses it and runs alert(1)
+```
+
+That puts the string straight into `innerHTML`. If we ever need to render user HTML (e.g. rich-text notes), it has to go through a sanitiser like **DOMPurify** first. Two other things to watch for: user-supplied links (`<a href={url}>` with `javascript:alert(1)`), so only allow `http(s)` URLs, and anything outside React like `element.innerHTML = ...`.
+
 ## Index: COLLSCAN vs IXSCAN
 
-Query: `Application.find({ owner, status: 'Interview' }).explain('executionStats')` on 1,000 seeded applications (500 per user). Run it yourself with `npm run explain`.
+Query: `Application.find({ owner, status: 'Interview' }).explain('executionStats')` on 1,000 seeded applications (500 per user). Since Day 7 every list query filters by `owner`, so this index is used on almost every request. Run it yourself with `npm run explain`.
 
 | | Before (no index) | After `{ owner: 1, status: 1 }` |
 | --- | --- | --- |
@@ -152,7 +245,7 @@ Your exact numbers will be slightly different because the seed data is random.
 
 ```js
 Application.aggregate([
-  { $match: filter },                       // everyone, or one owner with ?owner=<id>
+  { $match: { owner: req.user.id } },       // only the logged-in user's applications
   { $group: {
       _id: '$status',
       count: { $sum: 1 },
@@ -203,28 +296,33 @@ That's an index lookup, so it's just as fast on page 50,000 as on page 1. The tr
 src/
 ├── server.js                   # loads .env, connects to MongoDB, then starts listening
 ├── app.js                      # middleware in order + routes
-├── config/db.js                # mongoose.connect(MONGODB_URI)
+├── config/db.js                # sanitizeFilter + mongoose.connect(MONGODB_URI)
 ├── models/
 │   ├── User.js
 │   └── Application.js          # notes subdocument + { owner: 1, status: 1 } index
 ├── routes/
 │   ├── applications.js         # CRUD, stats, notes, pagination
-│   ├── users.js
+│   ├── auth.js                 # register, login (rate limited), me
+│   ├── admin.js                # /api/admin/stats (admin only)
 │   └── demo.js                 # /api/slow and /api/block
 ├── middleware/
 │   ├── logger.js
+│   ├── auth.js                 # protect + authorize('admin')
+│   ├── rateLimit.js            # 5 login attempts / 15 min
+│   ├── requireStrings.js       # blocks { "$ne": null } style injection
 │   ├── allowFields.js          # PATCH only accepts known fields
 │   ├── notFound.js
 │   └── errorHandler.js         # CastError / ValidationError / duplicate key → 400 / 409
 └── utils/
     ├── ApiError.js
+    ├── token.js                # signToken(user)
     └── asyncHandler.js         # passes errors from async routes to the error handler
 scripts/
 ├── seed.js
 └── explain.js
 ```
 
-Middleware order in `app.js`: **cors → express.json() → logger → routes → 404 handler → error handler**. The error handler has to be last: Express only passes an error forward to handlers registered after the point where it happened. If it were first, thrown errors would fall through to Express's default HTML error page instead of our JSON.
+Middleware order in `app.js`: **helmet → cors → express.json() (10kb limit) → logger → routes → 404 handler → error handler**. The error handler has to be last: Express only passes an error forward to handlers registered after the point where it happened. If it were first, thrown errors would fall through to Express's default HTML error page instead of our JSON.
 
 ## `^4.21.0` vs `~4.21.0` (semantic versioning)
 
@@ -257,18 +355,27 @@ So "Node is non-blocking" is only true when the slow work is handed off (timers,
 
 ## Postman
 
-The exported collection is in [`postman/JobTrackr-API.postman_collection.json`](postman/JobTrackr-API.postman_collection.json).
+The exported collection is in [`postman/JobTrackr-API.postman_collection.json`](postman/JobTrackr-API.postman_collection.json). It uses a `baseUrl` variable, and the requests save `tokenA`, `tokenB`, `tokenK` (Karthik, owner of the seeded data) and `adminToken` into collection variables for the requests after them.
 
-- `baseUrl` collection variable (`http://localhost:5000`). `userId` and `applicationId` are filled in by the requests
-- **Users**: get users (saves the first user's id)
-- **Applications**: list, page 2, filters, stats, create, duplicate → 409, get one, partial update, add a note, empty note → 400, delete
-- **Error cases** (8 here, plus the duplicate and empty-note checks above): deleted id → 404, bad id → 400, unknown route → 404, invalid body → 400 with every field, unknown PATCH field → 400, broken JSON → 400, bad pagination → 400, duplicate email → 409
-- **Event loop demo**: `/api/slow`, `/api/block`
-- every request tests its status code, and the error cases also check the error shape
+| Folder | What it proves |
+| --- | --- |
+| 1. Auth | register A and B (201, token, no password), `role: admin` in the body is ignored, invalid → 400, taken email → 409, admin + Karthik login, `/me` → 200, no token / fake token → 401 |
+| 2. Seeded data | Karthik sees only his 500 applications, page 2, filters, stats |
+| 3. User A's application | create (owner from token), duplicate → 409, get, update, **XSS note saved as plain text** |
+| 4. User B can't touch A's data | B's list doesn't contain it, get / update / note / delete A's application → **404**, A's is unchanged |
+| 5. Admin | admin → 200 with totals, normal user → **403**, no token → 401 |
+| 6. Error cases | no token → 401, bad id, invalid body, changing owner, `?status[$ne]=` injection, bad pagination, broken JSON → 400, unknown route → 404 |
+| 7. Security | **NoSQL injection login → 400**, wrong password and unknown email → same 401 message, **6th attempt → 429**, helmet headers present |
+| 8. Event loop demo | `/api/slow`, `/api/block` |
 
-To run it: `npm run seed`, `npm run dev`, then in Postman → **Import** the file → **Run collection** (keep the order).
+The collection uses **exactly 6 login attempts** (admin, Karthik, injection, wrong password, unknown email, then the 6th), so the last one shows the 429.
 
-Result: **22 requests, 51 tests, 0 failures**. It can be run again without re-seeding, since the test application is created and then deleted. From the terminal:
+To run it:
+1. `npm run seed`
+2. restart the server (`npm run dev`) so the rate-limit counter starts at 0
+3. Postman → **Import** → pick the file → **Run collection** (keep the order)
+
+Result: **46 requests, 107 tests, 0 failures**. It can be run again straight away after restarting the server, since every run registers new emails. From the terminal:
 
 ```bash
 npx newman run postman/JobTrackr-API.postman_collection.json
