@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { useAuth } from './context/AuthContext'
+import { useAuth } from './context/useAuth'
 import ProtectedRoute from './components/ProtectedRoute'
 import BoardPage from './pages/BoardPage'
 import LoginPage from './pages/LoginPage'
