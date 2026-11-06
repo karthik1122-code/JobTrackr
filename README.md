@@ -3,7 +3,7 @@
 Track your job applications from **Applied → Interview → Offer** (or Rejected) on a board. Each account only sees its own applications, stored in MongoDB.
 
 **Live app:** https://jobtrackr-board.vercel.app
-**API health check:** `https://<render-service>.onrender.com/api/health` (*fill in after the Render deploy*)
+**API (Render):** https://jobtrackr-api-f08o.onrender.com/api/health  (free plan, so the first request after a while can take ~50s to wake up)
 
 ### Test account for recruiters
 
