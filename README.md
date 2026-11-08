@@ -4,6 +4,7 @@ Track your job applications from **Applied → Interview → Offer** (or Rejecte
 
 **Live app:** https://jobtrackr-board.vercel.app
 **API (Render):** https://jobtrackr-api-f08o.onrender.com/api/health  (free plan, so the first request after a while can take ~50s to wake up)
+**AI tools (Day 10):** [server/README.md → AI tools](server/README.md#ai-tools-day-10) · [EXPERIMENTS.md](EXPERIMENTS.md)
 
 ### Test account for recruiters
 

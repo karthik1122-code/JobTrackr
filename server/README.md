@@ -355,6 +355,54 @@ Why: Node runs all my JavaScript on **one thread**, and the **event loop** picks
 
 So "Node is non-blocking" is only true when the slow work is handed off (timers, network, file I/O). Heavy CPU work in a route freezes the whole server. That kind of work should go to a worker thread or a separate service.
 
+## AI tools (Day 10)
+
+Three endpoints that help with job hunting. They all need a logged-in user (`Authorization: Bearer <token>`), and they use Google Gemini (`gemini-3.1-flash-lite`) through one function in [`src/services/llm.js`](src/services/llm.js).
+
+| Route | Body | Returns |
+| --- | --- | --- |
+| `POST /api/ai/summarize` | `{ "jobDescription": "..." }` | 5 bullets: role, must-have skills, nice-to-haves, responsibilities, red flags |
+| `POST /api/ai/rewrite` | `{ "text": "...", "tone": "formal" \| "confident" \| "concise" }` | the resume line rewritten in that tone, max 30 words |
+| `POST /api/ai/extract` | `{ "jobDescription": "..." }` | `{ company, role, location, skills[], minYears, salaryRange }`, with `null` for anything the text doesn't say |
+| `GET /api/ai/usage` | | your calls, tokens and cost since midnight (IST), per endpoint, plus the last 10 calls |
+| `POST /api/ai/experiments` | | admin only: runs the tests in [EXPERIMENTS.md](../EXPERIMENTS.md) on the server |
+
+Example:
+
+```bash
+curl -X POST $API/api/ai/rewrite -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"text":"made a website for my college fest using react","tone":"confident"}'
+# { "success": true, "data": { "rewritten": "...", "tone": "confident", "words": <n>,
+#   "usage": { "inputTokens": <n>, "outputTokens": <n>, "cost": <USD>, "calls": 1 } } }
+```
+
+### Why React can't call the LLM directly
+
+Anything shipped to the browser is public. If React called Gemini itself, the API key would have to be in the JavaScript bundle (`VITE_` variables are baked into the build), and anyone could see it in DevTools → Sources or in the request headers in the Network tab. They could copy it and run up a bill on our account, and we couldn't limit or log their usage. So the key only lives in the server's `.env` (and in Render's environment settings). The browser calls our own `/api/ai/*` routes, which check the login, check the input, rate-limit, call Gemini and log the cost.
+
+### Setup
+
+1. Get a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. Add it to `server/.env` (and Render → Environment):
+   ```
+   LLM_API_KEY=your-key
+   LLM_MODEL=gemini-3.1-flash-lite
+   ```
+3. **Spending limit before the first call.** The key is on the free tier with no billing account linked, so Google can't charge anything: when the free quota runs out, calls fail with 429 (we return "The AI is busy right now"). If billing is ever turned on, set a budget with alerts first in Google Cloud Console → Billing → Budgets & alerts, and a spend cap in AI Studio.
+
+### How it stays reliable and cheap
+
+- **One provider function.** Only `services/llm.js` knows about Gemini (URL, headers, request and response shape). It returns `{ text, inputTokens, outputTokens, ms, cost }`, so switching to OpenAI or Anthropic means changing one file.
+- **Prompts are files** in [`prompts/`](prompts): the system prompt has the rules, and the user message only has the input, wrapped in `"""` so the model treats it as data, not instructions.
+- **Input checked first.** A missing field, a non-string or bad tone → 400, and over 6,000 characters → 400 *before* any model call, so we never pay for junk.
+- **Structured output** for summarize and extract (`responseMimeType: application/json` + a schema). Then the code parses it and checks every field and type itself. Extract retries once if the JSON is broken or has the wrong fields, then returns **502** with a clear message.
+- **No made-up salaries.** The prompt says to return `null` for anything not in the text. On top of that, the code checks that every number in `salaryRange` actually appears in the job description, and sets it to `null` if not.
+- **Max 30 words for rewrite.** If the model goes over, we ask once more; if it's still over, we cut it at 30 words.
+- **Rate limit:** 30 AI requests per user per hour (429 after that).
+- **Every call is logged:** endpoint, model, input and output tokens, time and cost. It goes to the server log (`[ai] rewrite model=gemini-3.1-flash-lite in=<tokens> out=<tokens> time=<ms> cost=$<USD>`) and to the `aiusages` collection, which `/api/ai/usage` adds up.
+
+**Cost = input tokens × input price / 1M + output tokens × output price / 1M.** Prices are in [`src/config/pricing.js`](src/config/pricing.js): for `gemini-3.1-flash-lite` that's $0.25 per million input tokens and $1.50 per million output tokens.
+
 ## Postman
 
 The exported collection is in [`postman/JobTrackr-API.postman_collection.json`](postman/JobTrackr-API.postman_collection.json). It uses a `baseUrl` variable, and the requests save `tokenA`, `tokenB`, `tokenK` (Karthik, owner of the seeded data) and `adminToken` into collection variables for the requests after them.

@@ -12,3 +12,15 @@ export const loginLimiter = rateLimit({
     next(new ApiError(429, `Too many login attempts. Try again in ${minutes} minutes.`))
   },
 })
+
+// AI calls cost money, so each user gets 30 per hour (runs after protect, so we know the user)
+export const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 30,
+  keyGenerator: (req) => req.user.id,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: (req, res, next) => {
+    next(new ApiError(429, 'You have used your 30 AI requests for this hour. Try again later.'))
+  },
+})

@@ -25,3 +25,19 @@ With sessions, the server stores who's logged in and the browser just holds a se
 ## What are XSS and CSRF, and how do you defend against each?
 
 XSS is when an attacker gets their script to run on your site, e.g. through a note containing HTML. Defend by escaping output (React does this), never using dangerouslySetInnerHTML with user input, and adding a Content-Security-Policy. CSRF is when another site makes your logged-in browser send a request using your cookies. Defend with SameSite cookies, CSRF tokens, or sending the token in an Authorization header instead of a cookie.
+
+---
+
+# Day 10: LLMs
+
+## What is a token, a context window and a knowledge cutoff? Why do LLMs hallucinate, and how do you reduce it?
+
+A token is a chunk of text the model reads, roughly ¾ of a word. The context window is how many tokens fit in one request, input and output together. The knowledge cutoff is the date its training data ends. Models hallucinate because they predict likely next words, not true ones. I reduce it by giving the facts in the prompt, telling it to return null when something isn't there, using JSON output, and checking the answer in code.
+
+## What does temperature control? When would you use 0?
+
+Temperature controls how random the next-token choice is. At 0 it almost always picks the most likely token, so the same input gives nearly the same output. At 1 it picks less likely words more often, so answers vary more. I use 0 for anything that must be consistent or parsed by code, like extract and summarize. A little higher, like 0.3, suits rewriting, where some variety helps.
+
+## How do you choose a model for a feature, and how do you control cost?
+
+Start with the cheapest, fastest model and only move up if the answers aren't good enough on real examples. Summarising and extracting from short text don't need a big model, so I use Flash-Lite. To control cost: cap input at 6,000 characters, limit output tokens, rate-limit each user, log tokens and cost for every call, keep prompts short, and set a spending limit with the provider.

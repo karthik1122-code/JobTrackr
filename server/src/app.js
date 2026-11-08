@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import demoRoutes from './routes/demo.js'
 import healthRoutes from './routes/health.js'
+import aiRoutes from './routes/ai.js'
 
 const app = express()
 
@@ -32,6 +33,9 @@ app.use(cors({ origin: allowedOrigins }))
 
 // 3. turns a JSON body into req.body (has to come before the routes that read it).
 // The 10kb limit stops someone sending a huge body to tie up the server.
+// AI routes get 32kb: 6,000 characters of text like "₹" can be up to 18kb in bytes,
+// and we want our own clear "too long" 400 to answer, not a generic 413.
+app.use('/api/ai', express.json({ limit: '32kb' }))
 app.use(express.json({ limit: '10kb' }))
 
 // 4. logs every request
@@ -42,6 +46,7 @@ app.use('/api/health', healthRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/applications', applicationRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/ai', aiRoutes)
 app.use('/api', demoRoutes)
 
 // 6. nothing above matched, so it's a 404

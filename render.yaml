@@ -20,3 +20,6 @@ services:
         generateValue: true
       - key: CLIENT_URL
         sync: false
+      # Day 10: LLM_API_KEY is added by hand in Render → Environment (never in this file)
+      - key: LLM_MODEL
+        value: gemini-3.1-flash-lite
